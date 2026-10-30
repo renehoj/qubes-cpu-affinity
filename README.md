@@ -151,6 +151,8 @@ restarts.
 
 ## The vCPU window
 
+<img width="572" height="305" alt="vcpus" src="https://github.com/user-attachments/assets/331151a9-98f9-4ef9-b2d9-b3e563c73157" />
+
 `qubes-vcpu <qube>` opens a window for one running qube. It looks like the
 other Qubes tools: it uses the Qubes menu's light or dark stylesheet.
 
