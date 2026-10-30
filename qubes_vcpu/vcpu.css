@@ -1,0 +1,252 @@
+/* qubes-vcpu window chrome.
+
+   qubes-firewall's firewall.css (qubes-systemlist's look), loaded
+   the same way: AFTER the stock menu's qubes-menu-light.css /
+   qubes-menu-dark.css (or, off dom0, after fallback-theme.css, which defines the
+   same colour names), so @outer-background, @left-background, @separator,
+   @buttons-bg, @text-color and @text-color-contrast resolve. Opened from
+   qubes-systemlist, the list has already loaded those, and only this file is
+   added.
+
+   @ALPHA@ is substituted by window.py. Every translucent declaration is
+   preceded by its opaque twin, so a GTK that cannot evaluate alpha() still
+   draws the opaque stock look.
+*/
+
+/* The old menu's highlight red; see qubes-launcher's launcher.css for why. */
+@define-color launcher-red #BF616A;
+
+#qubes-vcpu-window {
+    background-color: @outer-background;
+    background-color: alpha(@outer-background, @ALPHA@);
+    border: 1px solid @separator;
+    border-radius: 6px;
+}
+
+#qubes-vcpu-window .vcpu-pane {
+    background-color: @left-background;
+    background-color: alpha(@left-background, @ALPHA@);
+    border-radius: 5px;
+}
+
+/* Title and subtitle: the action dialog's. */
+#qubes-vcpu-window .dialog-title {
+    margin: 12px 16px 0 16px;
+    color: @text-color;
+}
+
+#qubes-vcpu-window .dialog-subtitle {
+    margin: 2px 16px 6px 16px;
+    color: @buttons-bg;
+}
+
+/* Section headers: the list's column header, a quiet label row. */
+#qubes-vcpu-window .section {
+    color: @buttons-bg;
+    border-bottom: 1px solid @separator;
+    padding: 2px 0;
+    margin: 8px 0 4px 0;
+}
+
+#qubes-vcpu-window .field-title {
+    color: @text-color;
+}
+
+#qubes-vcpu-window .unit,
+#qubes-vcpu-window .note,
+#qubes-vcpu-window .placeholder {
+    color: @buttons-bg;
+}
+
+#qubes-vcpu-window .note {
+    font-size: smaller;
+    margin-top: 6px;
+}
+
+/* Inputs: the search field's frame, red when focused. */
+#qubes-vcpu-window combobox button,
+#qubes-vcpu-window spinbutton {
+    background-image: none;
+    background-color: @outer-background;
+    color: @text-color-contrast;
+    border: 1px solid @separator;
+    border-radius: 7px;
+    box-shadow: none;
+    min-height: 0;
+    padding: 3px 9px;
+}
+
+#qubes-vcpu-window spinbutton {
+    padding: 0;
+}
+
+#qubes-vcpu-window spinbutton entry {
+    background: transparent;
+    color: @text-color-contrast;
+    border: none;
+    box-shadow: none;
+    padding: 3px 9px;
+}
+
+#qubes-vcpu-window spinbutton button {
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    color: @buttons-bg;
+}
+
+#qubes-vcpu-window combobox button:focus,
+#qubes-vcpu-window spinbutton:focus,
+#qubes-vcpu-window spinbutton:focus-within {
+    border-color: @launcher-red;
+}
+
+#qubes-vcpu-window combobox button label,
+#qubes-vcpu-window combobox cellview {
+    color: @text-color-contrast;
+}
+
+#qubes-vcpu-window checkbutton label {
+    color: @text-color;
+}
+
+#qubes-vcpu-window checkbutton:focus label {
+    color: @text-color-contrast;
+}
+
+/* The stock stylesheet paints focused images blue (an unscoped `image:focus`
+   rule); clear it inside the inputs, as the list does for its search field. */
+#qubes-vcpu-window combobox image,
+#qubes-vcpu-window spinbutton image,
+#qubes-vcpu-window image:focus {
+    background-image: none;
+    background-color: transparent;
+}
+
+#qubes-vcpu-window *:disabled label,
+#qubes-vcpu-window .field-title:disabled,
+#qubes-vcpu-window combobox:disabled cellview,
+#qubes-vcpu-window spinbutton:disabled,
+#qubes-vcpu-window spinbutton:disabled entry,
+#qubes-vcpu-window spinbutton:disabled button {
+    color: @buttons-bg;
+    opacity: 0.6;
+}
+
+/* Footer: hint or error on the left, Cancel / Save on the right. */
+#qubes-vcpu-window .footer {
+    color: @buttons-bg;
+    font-size: smaller;
+    margin: 0 10px;
+}
+
+#qubes-vcpu-window .footer.error {
+    color: @launcher-red;
+}
+
+/* Buttons: the action dialog's. Focus is the keyboard's choice and gets the
+   selection colour; hover is fainter. */
+#qubes-vcpu-window button.action {
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 5px;
+    margin: 0 0 0 4px;
+    padding: 6px 14px;
+    color: @text-color;
+}
+
+#qubes-vcpu-window button.action label {
+    color: @text-color;
+}
+
+#qubes-vcpu-window button.action:hover {
+    background-color: alpha(@launcher-red, 0.15);
+}
+
+#qubes-vcpu-window button.action:focus {
+    background-color: @launcher-red;
+    background-color: alpha(@launcher-red, 0.35);
+}
+
+#qubes-vcpu-window button.action.suggested label {
+    font-weight: bold;
+}
+
+#qubes-vcpu-window button.action:disabled label {
+    color: @buttons-bg;
+    opacity: 0.6;
+}
+
+/* Text entries: the inputs' frame. */
+#qubes-vcpu-window entry {
+    background-image: none;
+    background-color: @outer-background;
+    color: @text-color-contrast;
+    border: 1px solid @separator;
+    border-radius: 7px;
+    box-shadow: none;
+    min-height: 0;
+    padding: 3px 9px;
+}
+
+#qubes-vcpu-window entry:focus {
+    border-color: @launcher-red;
+}
+
+#qubes-vcpu-window entry:disabled {
+    color: @buttons-bg;
+    opacity: 0.6;
+}
+
+/* What the window wants you to read. */
+#qubes-vcpu-window .errors,
+#qubes-vcpu-window .warning {
+    color: @launcher-red;
+}
+
+#qubes-vcpu-window .errors {
+    margin-top: 8px;
+}
+
+/* The online vCPU slider: the inputs' frame colour for the trough, red for
+   the part that is online and for focus. */
+#qubes-vcpu-window scale trough {
+    background-image: none;
+    background-color: @separator;
+    border: none;
+    border-radius: 3px;
+    min-height: 4px;
+}
+
+#qubes-vcpu-window scale highlight {
+    background-image: none;
+    background-color: @launcher-red;
+    border: none;
+    border-radius: 3px;
+}
+
+#qubes-vcpu-window scale slider {
+    background-image: none;
+    background-color: @text-color;
+    border: 1px solid @separator;
+    border-radius: 50%;
+    box-shadow: none;
+    min-width: 14px;
+    min-height: 14px;
+}
+
+#qubes-vcpu-window scale:focus slider {
+    background-color: @launcher-red;
+}
+
+#qubes-vcpu-window scale marks indicator {
+    color: @buttons-bg;
+    min-height: 4px;
+}
+
+#qubes-vcpu-window scale:disabled {
+    opacity: 0.6;
+}

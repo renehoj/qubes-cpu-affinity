@@ -1,0 +1,10 @@
+{
+  "hard_cores": "4-31",
+  "tags": {
+    "performance": "4-15",
+    "efficient": "16-31"
+  },
+  "default_cores": "4-31",
+  "retry_attempts": 6,
+  "retry_delay": 0.5
+}

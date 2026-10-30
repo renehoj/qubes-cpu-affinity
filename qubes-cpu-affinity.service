@@ -1,0 +1,20 @@
+[Unit]
+Description=Qubes CPU affinity daemon
+# qubesd must be up before we can open the Admin API connection.
+After=qubesd.service
+Wants=qubesd.service
+# libvirt must be up before xl can see/pin domains. Adjust the unit name if
+# your dom0 names it differently (e.g. virtxend or libvirtd-tls).
+After=libvirtd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/rwh/.local/bin/qubes-cpu-affinity.py
+Restart=always
+RestartSec=5
+# systemd has a minimal PATH; the script uses an absolute path to xl anyway,
+# but being explicit here avoids surprises if it ever shells out to anything else.
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+[Install]
+WantedBy=multi-user.target
