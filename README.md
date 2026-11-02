@@ -133,6 +133,8 @@ hardcoded range — firmware can reorder cores.
 
 ## The vCPU window (`qubes-vcpu`)
 
+<img width="607" height="320" alt="vcpus2" src="https://github.com/user-attachments/assets/7fe3d78f-0269-401e-9d90-3ed2a43e4043" />
+
 A window for one **running** qube, in qubes-firewall's look:
 
 ```console
@@ -176,7 +178,7 @@ hot-added vCPU *present*, and udev has to bring it online:
 SUBSYSTEM=="cpu", ACTION=="add", TEST=="online", ATTR{online}=="0", ATTR{online}="1"
 ```
 
-Fedora templates ship it (systemd's `40-redhat.rules`), Debian templates do
+Fedora templates ship it (systemd's `40-qubes-vcpu.rules`), Debian templates do
 not. So before raising the count, the window runs `qvm-run -u root` in the
 qube: if no rules file in `/etc/udev/rules.d`, `/usr/lib/udev/rules.d` or
 `/lib/udev/rules.d` has the rule, it writes
