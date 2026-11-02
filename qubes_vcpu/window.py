@@ -6,10 +6,12 @@ and the launcher's red for focus -- over three controls: online vCPUs (a
 slider), the core set (soft affinity) and the scheduler weight.
 
 Nothing is applied before Apply, and Apply changes the running qube only: the
-next start gets its usual settings again.
+next start gets its usual settings again. Save applies too, and also sets the
+qube's core tag and vCPU feature, so the daemon gives it the same at its next
+start (not the weight).
 
 Keyboard: Tab moves between the controls, Alt + an underlined letter jumps to
-one, Ctrl+Enter or Ctrl+S applies, Escape closes without applying.
+one, Ctrl+Enter applies, Ctrl+S saves, Escape closes without applying.
 
 ``_is_theme_light``, ``_load_theme`` and ``_prepare_transparency`` are the same
 as in qubes-firewall, which mirrors ``qubes_menu.appmenu`` (the Qubes OS
@@ -44,9 +46,14 @@ PANE_CLASS = "vcpu-pane"
 #: Window background opacity; qubes-systemlist's default.
 WINDOW_ALPHA = 0.92
 ALPHA_PLACEHOLDER = "@ALPHA@"
-WINDOW_WIDTH = 520
+WINDOW_WIDTH = 560
+#: Natural width, in characters, of the labels whose text varies. GTK 3 asks
+#: for a label's whole text on one line otherwise, and the window, which is not
+#: resizable, grows to it; capped, they wrap or ellipsize at WINDOW_WIDTH.
+TEXT_CHARS = 40
 
 HINT = "Ctrl+↵ apply  ·  Esc cancel"
+SAVE_HINT = "Ctrl+↵ apply  ·  Ctrl+S save  ·  Esc cancel"
 READ_ONLY_HINT = "Esc close"
 
 
@@ -171,7 +178,7 @@ class VcpuWindow(Gtk.Window):
     """vCPUs of one qube. Loads, lets you change, applies, closes.
 
     ``on_close(applied)`` is called once when the window goes away, with
-    ``applied`` True when the qube was changed. ``state`` skips loading
+    ``applied`` True when the qube was changed (applied or saved). ``state`` skips loading
     (tests, or a caller that already has it).
     """
 
@@ -214,6 +221,7 @@ class VcpuWindow(Gtk.Window):
 
         pane = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         pane.get_style_context().add_class(PANE_CLASS)
+        pane.set_size_request(WINDOW_WIDTH, -1)
         self.add(pane)
 
         heading = Gtk.Label(xalign=0)
@@ -222,7 +230,9 @@ class VcpuWindow(Gtk.Window):
         pane.pack_start(heading, False, False, 0)
 
         self.subtitle = Gtk.Label(xalign=0)
-        self.subtitle.set_ellipsize(Pango.EllipsizeMode.END)
+        # Wraps rather than ellipsizes: "not saved" is at its end.
+        self.subtitle.set_line_wrap(True)
+        self.subtitle.set_max_width_chars(TEXT_CHARS)
         self.subtitle.get_style_context().add_class("dialog-subtitle")
         pane.pack_start(self.subtitle, False, False, 0)
 
@@ -239,17 +249,21 @@ class VcpuWindow(Gtk.Window):
 
         self.footer = Gtk.Label(label=HINT, xalign=0)
         self.footer.set_ellipsize(Pango.EllipsizeMode.END)
+        self.footer.set_max_width_chars(TEXT_CHARS)
         self.footer.get_style_context().add_class("footer")
         bottom.pack_start(self.footer, True, True, 0)
 
         self.cancel_button = Gtk.Button.new_with_mnemonic("_Cancel")
+        self.save_button = Gtk.Button.new_with_mnemonic("_Save")
         self.apply_button = Gtk.Button.new_with_mnemonic("_Apply")
-        for button in (self.cancel_button, self.apply_button):
+        for button in (self.cancel_button, self.save_button, self.apply_button):
             button.get_style_context().add_class("action")
             bottom.pack_start(button, False, False, 0)
         self.apply_button.get_style_context().add_class("suggested")
         self.apply_button.set_sensitive(False)
+        self.save_button.set_sensitive(False)
         self.cancel_button.connect("clicked", lambda *_: self.cancel())
+        self.save_button.connect("clicked", lambda *_: self.save())
         self.apply_button.connect("clicked", lambda *_: self.apply())
 
         self.connect("key-press-event", self._on_key_press)
@@ -270,7 +284,7 @@ class VcpuWindow(Gtk.Window):
 
         self.note = Gtk.Label(xalign=0)
         self.note.set_line_wrap(True)
-        self.note.set_max_width_chars(70)
+        self.note.set_max_width_chars(TEXT_CHARS)
         self.note.get_style_context().add_class("note")
         self.note.set_no_show_all(True)
         page.pack_start(self.note, False, False, 0)
@@ -323,6 +337,7 @@ class VcpuWindow(Gtk.Window):
 
         self.tail = Gtk.Label(label=model.LIVE_NOTE, xalign=0)
         self.tail.set_line_wrap(True)
+        self.tail.set_max_width_chars(TEXT_CHARS)
         self.tail.get_style_context().add_class("note")
         page.pack_start(self.tail, False, False, 0)
         return page
@@ -355,6 +370,12 @@ class VcpuWindow(Gtk.Window):
             self.apply_button.hide()
             self.apply_button.set_no_show_all(True)
             self.tail.set_no_show_all(True)
+        if state.savable:
+            self.tail.set_text(model.SAVE_NOTE)
+            self._set_footer(SAVE_HINT)
+        else:
+            self.save_button.hide()
+            self.save_button.set_no_show_all(True)
         if not state.running:
             self.controls.set_no_show_all(True)
             self._set_footer(READ_ONLY_HINT)
@@ -388,6 +409,12 @@ class VcpuWindow(Gtk.Window):
         return (self.state is not None and self.state.editable
                 and self.settings() != self.state.current())
 
+    def unsaved(self) -> bool:
+        """Would Save change anything (the running qube, or qubesd)?"""
+        return (self.state is not None and self.state.savable
+                and (self.dirty()
+                     or bool(model.save_changes(self.state, self.settings()))))
+
     def _changed(self) -> None:
         if self._loading or self.state is None:
             return
@@ -398,6 +425,7 @@ class VcpuWindow(Gtk.Window):
         else:
             self.subtitle.set_text(model.summary(self.state))
         self.apply_button.set_sensitive(self.dirty() and not self._busy)
+        self.save_button.set_sensitive(self.unsaved() and not self._busy)
 
     # -- applying --------------------------------------------------------
     def apply(self) -> None:
@@ -414,10 +442,30 @@ class VcpuWindow(Gtk.Window):
         run_in_thread(self.backend.apply, self.state, settings,
                       on_done=self._applied, on_error=self._apply_failed)
 
+    def save(self) -> None:
+        if self._busy or self._closed or not self.unsaved():
+            return
+        settings = self.settings()
+        problems = model.check(self.state, settings)
+        if problems:
+            self._show_error(" ".join(problems))
+            return
+        self._set_busy(True)
+        self._set_footer("Saving…")
+        logger.info("Saving %s for %s", settings, self.qube_name)
+        run_in_thread(self.backend.save, self.state, settings,
+                      on_done=self._saved, on_error=self._apply_failed)
+
     def _applied(self, ran: list[list[str]]) -> None:
         for args in ran:
             logger.info("xl %s", " ".join(args))
         self._finish(applied=True)
+
+    def _saved(self, done: tuple[list[list[str]], list[model.SaveChange]]) -> None:
+        ran, changes = done
+        for change in changes:
+            logger.info("%s", change.text(self.qube_name))
+        self._applied(ran)
 
     def _apply_failed(self, exc: Exception) -> None:
         if self._closed:
@@ -427,6 +475,7 @@ class VcpuWindow(Gtk.Window):
         # Part of it may have been applied: what the qube has now is unknown,
         # so applying again from the old state could be wrong.
         self.apply_button.set_sensitive(False)
+        self.save_button.set_sensitive(False)
         self.body.set_sensitive(False)
         self._show_error(str(exc))
 
@@ -434,6 +483,7 @@ class VcpuWindow(Gtk.Window):
         self._busy = busy
         self.body.set_sensitive(not busy)
         self.apply_button.set_sensitive(not busy and self.dirty())
+        self.save_button.set_sensitive(not busy and self.unsaved())
         self.cancel_button.set_sensitive(not busy)
 
     # -- footer ----------------------------------------------------------
@@ -453,8 +503,11 @@ class VcpuWindow(Gtk.Window):
         if key == Gdk.KEY_Escape:
             self.cancel()
             return True
-        if ctrl and key in (Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_s, Gdk.KEY_S):
+        if ctrl and key in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
             self.apply()
+            return True
+        if ctrl and key in (Gdk.KEY_s, Gdk.KEY_S):
+            self.save()
             return True
         return False
 

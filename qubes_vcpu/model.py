@@ -1,9 +1,10 @@
 """What the vCPU window shows and changes, as plain data.
 
-A qube's vCPU state is read from Xen (``xl``), not from qubesd: the window
-changes the *running* domain only, and nothing is written to the qube's
-properties, tags or features. The next start gets the qube's usual settings
-again (and the cpu-affinity daemon pins it as always).
+A qube's vCPU state is read from Xen (``xl``): Apply changes the *running*
+domain only, and the next start gets the qube's usual settings again (the
+cpu-affinity daemon pins it as always). Save applies too, and also writes what
+the daemon reads at the next start -- the qube's core tag and its vcpus feature
+(:func:`save_changes`). The weight is not saved: the daemon does not set it.
 
 Three things can be changed, each for every vCPU of the qube at once:
 
@@ -29,6 +30,9 @@ DOM0_XL_NAME = "Domain-0"
 
 DEFAULT_CONFIG = os.path.join(os.path.expanduser("~"), ".local", "bin",
                               "cpu-affinity.json")
+
+#: The daemon's default for its ``vcpus_feature`` setting.
+VCPUS_FEATURE = "vcpus-online"
 
 WEIGHT_MIN = 1
 WEIGHT_MAX = 65535
@@ -62,6 +66,9 @@ ADMIN_NOTE = ("dom0 is pinned at boot (dom0_max_vcpus, dom0_vcpus_pin); "
               "this window only shows it.")
 LIVE_NOTE = ("Changes apply to the running qube only. It starts with its usual "
              "settings next time.")
+SAVE_NOTE = ("Apply changes the running qube only. Save also sets its core tag "
+             "and vCPU feature, so it starts with the same vCPUs and cores next "
+             "time (the weight is not saved).")
 
 
 # -- core sets -----------------------------------------------------------------
@@ -125,18 +132,23 @@ class Placement:
         return f"{self.label} ({self.cores})"
 
 
-def load_placements(path: str | None = None) -> tuple[Placement, ...]:
-    """The core sets in cpu-affinity.json: its tags, in order, then
-    default_cores. Empty when the file is missing; ValueError when unreadable."""
+def load_config(path: str | None = None) -> dict:
+    """cpu-affinity.json as a dict. Empty when the file is missing; ValueError
+    when unreadable."""
     path = path or DEFAULT_CONFIG
     try:
         with open(path, "r", encoding="utf-8") as handle:
-            config = json.load(handle)
+            return json.load(handle)
     except FileNotFoundError:
-        return ()
+        return {}
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"Could not read {path}: {exc}") from exc
-    return placements_from_config(config)
+
+
+def load_placements(path: str | None = None) -> tuple[Placement, ...]:
+    """The core sets in cpu-affinity.json: its tags, in order, then
+    default_cores. Empty when the file is missing; ValueError when unreadable."""
+    return placements_from_config(load_config(path))
 
 
 def placements_from_config(config: dict) -> tuple[Placement, ...]:
@@ -162,7 +174,9 @@ class QubeVcpus:
     """One qube's vCPUs as Xen has them now.
 
     ``softs`` holds each vCPU's soft affinity as xl prints it. A qube that is
-    not running has only ``name``, ``klass`` and ``running``.
+    not running has only ``name``, ``klass`` and ``running``. ``tags`` and
+    ``feature_value`` are what qubesd has for Save; ``tags`` is None when they
+    could not be read, and Save is then not offered.
     """
     name: str
     klass: str
@@ -176,6 +190,10 @@ class QubeVcpus:
     #: The HVM device-model stubdomain, ``<qube>-dm``, when it exists.
     stubdomain: str | None = None
     placements: tuple[Placement, ...] = field(default=())
+    tags: frozenset[str] | None = None
+    #: The qvm-feature the daemon reads the online vCPUs from, and its value.
+    vcpus_feature: str = VCPUS_FEATURE
+    feature_value: str | None = None
 
     @property
     def is_admin(self) -> bool:
@@ -184,6 +202,10 @@ class QubeVcpus:
     @property
     def editable(self) -> bool:
         return self.running and not self.is_admin
+
+    @property
+    def savable(self) -> bool:
+        return self.editable and self.tags is not None
 
     @property
     def xl_name(self) -> str:
@@ -235,7 +257,8 @@ class QubeVcpus:
 
 
 def summary(state: QubeVcpus, settings: Settings | None = None) -> str:
-    """The subtitle: class, online vCPUs, weight, scheduler."""
+    """The subtitle: class, online vCPUs, weight, scheduler, and whether
+    ``settings`` are applied and saved."""
     if not state.running:
         return f"{state.klass} · not running"
     settings = settings or state.current()
@@ -243,6 +266,8 @@ def summary(state: QubeVcpus, settings: Settings | None = None) -> str:
             f" · weight {settings.weight} · {state.scheduler} scheduler")
     if settings != state.current():
         text += " · not applied"
+    if state.savable and save_changes(state, settings):
+        text += " · not saved"
     return text
 
 
@@ -343,3 +368,47 @@ def parse_sched(text: str) -> int:
         if len(row) >= 3 and row[2].isdigit():
             return int(row[2])
     raise ValueError(f"Unexpected xl sched output: {text!r}")
+
+
+# -- saving --------------------------------------------------------------------
+@dataclass(frozen=True)
+class SaveChange:
+    """One write to qubesd. ``kind`` is ``tag`` (``value``: True adds the tag
+    ``name``, False removes it) or ``feature`` (``value``: the new value, None
+    unsets it)."""
+    kind: str
+    name: str
+    value: str | bool | None
+
+    def text(self, qube: str) -> str:
+        """The same change as a dom0 command, for the log."""
+        if self.kind == "tag":
+            return f"qvm-tags {qube} {'add' if self.value else 'del'} {self.name}"
+        if self.value is None:
+            return f"qvm-features --unset {qube} {self.name}"
+        return f"qvm-features {qube} {self.name} {self.value}"
+
+
+def save_changes(state: QubeVcpus, settings: Settings) -> list[SaveChange]:
+    """What Save writes so the daemon gives the qube ``settings`` at its next
+    start; only what differs from now.
+
+    Cores: the chosen config tag is added and the other config tags removed
+    (the daemon takes the first it finds); default_cores removes them all; a
+    soft affinity that matches no set (*Current*) leaves the tags alone.
+    Online vCPUs: the feature is set, or unset when all vCPUs are online --
+    the qube's own vcpus property then decides, as without the daemon.
+    """
+    found = []
+    if settings.placement != CURRENT:
+        for placement in state.placements:
+            if placement.key == DEFAULT:
+                continue
+            has = placement.key in (state.tags or ())
+            wanted = placement.key == settings.placement
+            if has != wanted:
+                found.append(SaveChange("tag", placement.key, wanted))
+    value = None if settings.online == state.max_vcpus else str(settings.online)
+    if value != (state.feature_value or None):
+        found.append(SaveChange("feature", state.vcpus_feature, value))
+    return found

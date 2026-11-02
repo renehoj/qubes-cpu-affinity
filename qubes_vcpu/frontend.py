@@ -21,7 +21,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="qubes-vcpu",
         description="Change the online vCPUs, cores and scheduler weight of a "
-                    "running qube, until it next starts.",
+                    "running qube, until it next starts -- or save the vCPUs "
+                    "and cores for its next start too.",
     )
     parser.add_argument("qube")
     parser.add_argument("--backend", choices=KINDS, default="auto",

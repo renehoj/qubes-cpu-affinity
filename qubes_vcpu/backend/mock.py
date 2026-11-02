@@ -32,6 +32,17 @@ _QUBES = {
     "vault": ("AppVM", False, 2, 0, "", 256, False),
 }
 
+#: name: (tags, vcpus-online feature); what Save changes.
+_SAVED = {
+    "work": ({"performance"}, "4"),
+    "games": ({"performance", "gaming"}, None),
+    "office": (set(), "2"),
+    "sys-net": ({"efficient"}, None),
+    "sys-firewall": (set(), None),
+    "personal": (set(), None),
+    "vault": (set(), None),
+}
+
 
 class MockBackend(Backend):
     """Simulates a Qubes system. ``delay`` scales the simulated xl time."""
@@ -43,6 +54,10 @@ class MockBackend(Backend):
         self.delay = delay
         self._lock = threading.RLock()
         self._qubes = {name: list(values) for name, values in _QUBES.items()}
+        self.tags = {name: set(tags) for name, (tags, _) in _SAVED.items()}
+        self.features = {name: {model.VCPUS_FEATURE: value}
+                         for name, (_, value) in _SAVED.items()
+                         if value is not None}
         #: Every xl command run (tests).
         self.ran: list[list[str]] = []
         #: (qube, script) for every script run as root in a qube (tests).
@@ -67,7 +82,20 @@ class MockBackend(Backend):
                 name, klass, True, max_vcpus=max_vcpus, online=online,
                 softs=(soft,) * max_vcpus, weight=weight, nr_cpus=NR_CPUS,
                 stubdomain=f"{name}-dm" if dm else None,
-                placements=model.placements_from_config(CONFIG))
+                placements=model.placements_from_config(CONFIG),
+                tags=frozenset(self.tags[name]) if name in self.tags else None,
+                feature_value=self.features.get(name, {}).get(model.VCPUS_FEATURE))
+
+    def _save(self, name: str, change: model.SaveChange) -> None:
+        self._sleep(0.1)
+        with self._lock:
+            if change.kind == "tag":
+                (self.tags[name].add if change.value else self.tags[name].discard)(
+                    change.name)
+            elif change.value is None:
+                self.features.get(name, {}).pop(change.name, None)
+            else:
+                self.features.setdefault(name, {})[change.name] = change.value
 
     def _run_as_root(self, name: str, script: str) -> None:
         self._sleep(0.3)

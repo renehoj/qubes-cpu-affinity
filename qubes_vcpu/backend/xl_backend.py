@@ -2,7 +2,8 @@
 
 xl needs root; as any other user it runs through ``sudo -n`` (dom0's user has
 password-less sudo). qubesadmin, when installed, says whether the qube exists,
-its class and whether it runs; xl alone can only tell a running domain.
+its class and whether it runs, and holds the tags and features Save changes;
+xl alone can only tell a running domain, and Save is then not offered.
 
 The udev rule for added vCPUs is written in the qube with ``qvm-run -u root``,
 which dom0 may do without sudo. Only its exit code is used.
@@ -63,20 +64,51 @@ class XlBackend(Backend):
             # The qube's own output is not shown: it is not trusted.
             raise BackendError(f"qvm-run exited with {exc.returncode}.") from exc
 
+    def _vm(self, name: str):
+        try:
+            return self.app.domains[name]
+        except KeyError:
+            raise BackendError(f"No such qube: {name}") from None
+
     def _qube(self, name: str) -> tuple[str, bool | None]:
         """(class, running) from qubesd; running None without qubesadmin."""
         if name == "dom0":
             return model.ADMIN_VM, True
         if self.app is None:
             return "qube", None
-        try:
-            vm = self.app.domains[name]
-        except KeyError:
-            raise BackendError(f"No such qube: {name}") from None
+        vm = self._vm(name)
         try:
             return vm.klass, vm.is_running()
         except Exception as exc:  # pylint: disable=broad-except
             raise BackendError(f"Could not read {name}: {exc}") from exc
+
+    def _saved(self, name: str, feature: str) -> tuple[frozenset[str] | None, str | None]:
+        """(tags, feature value) from qubesd; tags None when unknown."""
+        if name == "dom0" or self.app is None:
+            return None, None
+        vm = self._vm(name)
+        try:
+            return frozenset(vm.tags), vm.features.get(feature, None)
+        except Exception as exc:  # pylint: disable=broad-except
+            raise BackendError(f"Could not read {name}: {exc}") from exc
+
+    def _save(self, name: str, change: model.SaveChange) -> None:
+        if self.app is None:
+            raise BackendError("qubesadmin is not installed.")
+        vm = self._vm(name)
+        try:
+            if change.kind == "tag" and change.value:
+                vm.tags.add(change.name)
+            elif change.kind == "tag":
+                vm.tags.remove(change.name)
+            elif change.value is None:
+                del vm.features[change.name]
+            else:
+                vm.features[change.name] = change.value
+        except KeyError:
+            pass  # the tag or feature was gone already
+        except Exception as exc:  # pylint: disable=broad-except
+            raise BackendError(f"{change.text(name)} failed: {exc}") from exc
 
     def _exists(self, domain: str) -> bool:
         try:
@@ -93,9 +125,11 @@ class XlBackend(Backend):
         if running is None and not self._exists(xl_name):
             raise BackendError(f"{name} is not running, or is no qube.")
         try:
-            placements = model.load_placements(self.config_path)
+            config = model.load_config(self.config_path)
         except ValueError as exc:
             raise BackendError(str(exc)) from exc
+        feature = config.get("vcpus_feature") or model.VCPUS_FEATURE
+        tags, feature_value = self._saved(name, feature)
         try:
             info = model.parse_xl_info(self._xl(["info"]))
             scheduler = info.get("xen_scheduler", "credit")
@@ -112,4 +146,6 @@ class XlBackend(Backend):
         return model.QubeVcpus(
             name, klass, True, max_vcpus=len(softs), online=online, softs=softs,
             weight=weight, scheduler=scheduler, nr_cpus=nr_cpus,
-            stubdomain=stubdomain, placements=placements)
+            stubdomain=stubdomain,
+            placements=model.placements_from_config(config),
+            tags=tags, vcpus_feature=feature, feature_value=feature_value)

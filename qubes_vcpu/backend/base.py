@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import abc
 
-from ..model import ONLINE_RULE_SCRIPT, QubeVcpus, Settings, adds_vcpus, check, commands
+from ..model import (ONLINE_RULE_SCRIPT, QubeVcpus, SaveChange, Settings, adds_vcpus,
+                     check, commands, save_changes)
 
 
 class BackendError(Exception):
@@ -19,7 +20,7 @@ class BackendError(Exception):
 class Backend(abc.ABC):
     """Reading and changing one qube's vCPUs.
 
-    Both methods may block, so the window calls them from worker threads.
+    All methods may block, so the window calls them from worker threads.
     Implementations must be thread-safe.
     """
 
@@ -40,6 +41,11 @@ class Backend(abc.ABC):
     def _run_as_root(self, name: str, script: str) -> None:
         """Run the shell ``script`` as root in the qube ``name``.
         BackendError when it fails."""
+
+    @abc.abstractmethod
+    def _save(self, name: str, change: SaveChange) -> None:
+        """Write ``change`` to the qube ``name`` in qubesd. BackendError when
+        it fails."""
 
     def apply(self, state: QubeVcpus, settings: Settings) -> list[list[str]]:
         """Change the running qube from ``state`` to ``settings``; the xl
@@ -69,3 +75,23 @@ class Backend(abc.ABC):
                 raise BackendError(f"{exc} (already applied: {done})") from exc
             ran.append(args)
         return ran
+
+    def save(self, state: QubeVcpus,
+             settings: Settings) -> tuple[list[list[str]], list[SaveChange]]:
+        """Apply ``settings`` to the running qube, then write the tags and
+        feature that give it the same at its next start; the xl commands and
+        the changes that ran."""
+        if not state.savable:
+            raise BackendError(f"The tags and features of {state.name} cannot "
+                               "be changed here.")
+        ran = self.apply(state, settings)
+        saved = []
+        for change in save_changes(state, settings):
+            try:
+                self._save(state.name, change)
+            except BackendError as exc:
+                done = "; ".join(c.text(state.name) for c in saved) or "nothing"
+                raise BackendError(f"{exc} (applied to the running qube; already "
+                                   f"saved: {done})") from exc
+            saved.append(change)
+        return ran, saved
