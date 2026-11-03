@@ -36,23 +36,6 @@ Confirm with `xl info | grep -i sched` → `xen_scheduler : credit`.
 
 ## Install (in dom0)
 
-`packaging/install-on-dom0.sh` does it in one go: a staging qube (default
-`personal`, or the first argument) clones this repo fresh from the git server
-and streams it back as a tarball. dom0 checks the archive, installs the
-checkout under `~/.local/share/qubes-cpu-affinity` (with `~/.local/bin/qubes-vcpu`
-linked to its `bin/`), the daemon in `~/.local/bin`, the config only if there
-is none yet, and the unit (via sudo), then restarts the daemon and checks it
-stays up. Run it again to update. It deploys what is pushed to `main`, not
-your local checkout. Get the script itself into dom0 once:
-
-```console
-[user@dom0] $ qvm-run -p <qube> 'cat ~/src/qubes-cpu-affinity/packaging/install-on-dom0.sh' \
-                  > install-on-dom0.sh
-[user@dom0] $ bash install-on-dom0.sh <qube>
-```
-
-By hand instead:
-
 ```bash
 # 1. Copy files over (from a qube: qvm-copy-to-dom0, then move into place)
 install -D -m 0755 qubes-cpu-affinity.py /home/rwh/.local/bin/qubes-cpu-affinity.py
