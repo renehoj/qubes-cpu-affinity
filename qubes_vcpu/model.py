@@ -21,15 +21,14 @@ Three things can be changed, each for every vCPU of the qube at once:
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass, field
 
 ADMIN_VM = "AdminVM"
 #: Xen's name for dom0.
 DOM0_XL_NAME = "Domain-0"
 
-DEFAULT_CONFIG = os.path.join(os.path.expanduser("~"), ".local", "bin",
-                              "cpu-affinity.json")
+#: The daemon's config, owned by root (the daemon runs as root).
+DEFAULT_CONFIG = "/etc/qubes-cpu-affinity.json"
 
 #: The daemon's default for its ``vcpus_feature`` setting.
 VCPUS_FEATURE = "vcpus-online"

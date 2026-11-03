@@ -4,11 +4,19 @@
 # The window uses package-relative imports, so it has to be run as a module
 # with the checkout on sys.path (same as qubes-firewall's bin/ wrapper).
 # After a real install, use the `qubes-vcpu` entry point instead.
+#
+# The checkout is found through symlinks: the dom0 install runs this from a
+# link in ~/.local/bin. PYTHONSAFEPATH keeps the current directory off
+# sys.path, where -m puts it first: started from ~/QubesIncoming/<qube>, say,
+# a json.py copied from that qube would run instead of the real one. Python
+# 3.11+ honours it (dom0 has 3.11 since Qubes 4.2); older ones ignore it,
+# so the window still runs off dom0 on them, unprotected.
 
 set -eu
 
-here=$(cd "$(dirname "$0")/.." && pwd)
+here=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
 PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}"
-export PYTHONPATH
+PYTHONSAFEPATH=1
+export PYTHONPATH PYTHONSAFEPATH
 
 exec python3 -m qubes_vcpu.frontend "$@"

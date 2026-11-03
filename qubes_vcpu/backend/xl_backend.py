@@ -53,15 +53,17 @@ class XlBackend(Backend):
         # --pass-io: without it qvm-run does not return the script's exit code.
         cmd = [QVM_RUN, "--pass-io", "--no-gui", "--no-autostart", "-u", "root",
                name, script]
+        # The qube's output is not trusted, so it is not even read: kept, it
+        # would let the qube fill dom0's memory until the timeout.
         try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True,
-                           stdin=subprocess.DEVNULL, timeout=60)
+            subprocess.run(cmd, check=True, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=60)
         except FileNotFoundError as exc:
             raise BackendError(f"Could not run {QVM_RUN}: {exc}") from exc
         except subprocess.TimeoutExpired as exc:
             raise BackendError("qvm-run timed out.") from exc
         except subprocess.CalledProcessError as exc:
-            # The qube's own output is not shown: it is not trusted.
             raise BackendError(f"qvm-run exited with {exc.returncode}.") from exc
 
     def _vm(self, name: str):

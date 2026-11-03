@@ -1,14 +1,18 @@
 """Backends: the demo data, apply(), and the xl backend against canned xl output."""
 
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from qubes_vcpu import model  # noqa: E402
 from qubes_vcpu.backend import BackendError  # noqa: E402
+from qubes_vcpu.backend import xl_backend  # noqa: E402
 from qubes_vcpu.backend.mock import MockBackend  # noqa: E402
 from qubes_vcpu.backend.xl_backend import XlBackend  # noqa: E402
 
@@ -188,6 +192,30 @@ class XlBackendTest(unittest.TestCase):
         with self.assertRaises(BackendError) as caught:
             backend.apply(s, model.Settings(3, "efficient", 256))
         self.assertIn("vcpu-set games 3", str(caught.exception))
+
+
+class RunAsRootTest(unittest.TestCase):
+    """The real _run_as_root, with qvm-run replaced by a shell script that
+    plays a hostile qube."""
+
+    def run_qube(self, body):
+        with tempfile.TemporaryDirectory() as tmp:
+            qvm_run = os.path.join(tmp, "qvm-run")
+            with open(qvm_run, "w", encoding="utf-8") as handle:
+                handle.write("#!/bin/sh\n" + body + "\n")
+            os.chmod(qvm_run, 0o755)
+            with mock.patch.object(xl_backend, "QVM_RUN", qvm_run):
+                XlBackend(app=object())._run_as_root("work", "true")
+
+    def test_output_goes_nowhere(self):
+        # Not a pipe dom0 reads, which a qube could flood: exit 9 otherwise.
+        self.run_qube("[ /proc/$$/fd/1 -ef /dev/null ] && "
+                      "[ /proc/$$/fd/2 -ef /dev/null ] || exit 9")
+
+    def test_only_the_exit_code_is_reported(self):
+        with self.assertRaises(BackendError) as caught:
+            self.run_qube("echo 'from the qube'; exit 3")
+        self.assertEqual(str(caught.exception), "qvm-run exited with 3.")
 
 
 if __name__ == "__main__":

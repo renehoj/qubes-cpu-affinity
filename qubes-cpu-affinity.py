@@ -41,7 +41,6 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import subprocess
 import sys
 import time
@@ -54,10 +53,9 @@ log = logging.getLogger("qubes-cpu-affinity")
 # systemd's PATH is minimal -- always use the absolute path to xl.
 XL = "/usr/sbin/xl"
 
-# Default config lives beside this script (~/.local/bin/cpu-affinity.json).
-DEFAULT_CONFIG_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "cpu-affinity.json"
-)
+# Owned by root, like the script: the daemon runs as root, so neither may be
+# writable by dom0's user.
+DEFAULT_CONFIG_PATH = "/etc/qubes-cpu-affinity.json"
 
 DEFAULTS = {
     "tags": {},               # {tag: soft cores}; first matching tag (insertion order) wins

@@ -9,12 +9,19 @@ After=libvirtd.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /home/rwh/.local/bin/qubes-cpu-affinity.py
+# Runs as root (xl needs it), so the script and its config
+# (/etc/qubes-cpu-affinity.json) are root's too. -I: no PYTHON* variables, no
+# user site-packages, no script directory on sys.path.
+ExecStart=/usr/bin/python3 -I /usr/local/lib/qubes-cpu-affinity/qubes-cpu-affinity.py
 Restart=always
 RestartSec=5
 # systemd has a minimal PATH; the script uses an absolute path to xl anyway,
 # but being explicit here avoids surprises if it ever shells out to anything else.
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Nothing here needs /home, /root or a shared /tmp, or to gain privileges.
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
 
 [Install]
 WantedBy=multi-user.target
