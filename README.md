@@ -19,20 +19,8 @@ started at any time (not just at boot) get pinned.
 4. Optionally, the number of **online vCPUs** is set from a qvm-feature (see
    below) via `xl vcpu-set <vm> N`.
 
-## ⚠️ Requires the credit1 scheduler
-
-Soft affinity is **ignored by credit2**, which is Qubes' default scheduler. You
-must boot with `sched=credit`:
-
-```bash
-sudo nano /etc/default/grub
-#    add to GRUB_CMDLINE_XEN_DEFAULT:   sched=credit
-sudo cp /boot/grub2/grub.cfg /boot/grub2/grub.cfg.bak   # back up first!
-sudo grub2-mkconfig -o /boot/grub2/grub.cfg
-sudo reboot
-```
-
-Confirm with `xl info | grep -i sched` → `xen_scheduler : credit`.
+**Soft affinity only works with the credit1 scheduler, if you use credit2 
+Xen will not respect the limits**
 
 ## Install (in dom0)
 
@@ -167,7 +155,7 @@ hot-added vCPU *present*, and udev has to bring it online:
 SUBSYSTEM=="cpu", ACTION=="add", TEST=="online", ATTR{online}=="0", ATTR{online}="1"
 ```
 
-Fedora templates ship it (systemd's `40-qubes-vcpu.rules`), Debian templates do
+Fedora templates ship it (systemd's `40-redhat.rules`), Debian templates do
 not. So before raising the count, the window runs `qvm-run -u root` in the
 qube: if no rules file in `/etc/udev/rules.d`, `/usr/lib/udev/rules.d` or
 `/lib/udev/rules.d` has the rule, it writes
