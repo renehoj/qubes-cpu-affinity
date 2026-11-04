@@ -1,8 +1,7 @@
 """Backend interface shared by the xl and demo implementations.
 
-Same split as qubes-firewall: the window only talks to a :class:`Backend`, and
-everything crossing that boundary is plain data (:class:`QubeVcpus`,
-:class:`Settings`).
+The window only talks to a :class:`Backend`, and everything crossing that
+boundary is plain data (:class:`QubeVcpus`, :class:`Settings`).
 """
 
 from __future__ import annotations

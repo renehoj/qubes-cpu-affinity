@@ -1,20 +1,18 @@
 /* qubes-vcpu window chrome.
 
-   qubes-firewall's firewall.css (qubes-systemlist's look), loaded
-   the same way: AFTER the stock menu's qubes-menu-light.css /
-   qubes-menu-dark.css (or, off dom0, after fallback-theme.css, which defines the
-   same colour names), so @outer-background, @left-background, @separator,
-   @buttons-bg, @text-color and @text-color-contrast resolve. Opened from
-   qubes-systemlist, the list has already loaded those, and only this file is
-   added.
+   Loaded AFTER the stock menu's qubes-menu-light.css / qubes-menu-dark.css
+   (or, off dom0, after fallback-theme.css, which defines the same colour
+   names), so @outer-background, @left-background, @separator, @buttons-bg,
+   @text-color and @text-color-contrast resolve. A caller that has already
+   loaded those for the screen adds only this file.
 
    @ALPHA@ is substituted by window.py. Every translucent declaration is
    preceded by its opaque twin, so a GTK that cannot evaluate alpha() still
    draws the opaque stock look.
 */
 
-/* The old menu's highlight red; see qubes-launcher's launcher.css for why. */
-@define-color launcher-red #BF616A;
+/* The stock menu's highlight red: focus, errors and the suggested action. */
+@define-color accent-red #BF616A;
 
 #qubes-vcpu-window {
     background-color: @outer-background;
@@ -29,7 +27,7 @@
     border-radius: 5px;
 }
 
-/* Title and subtitle: the action dialog's. */
+/* Title and subtitle. */
 #qubes-vcpu-window .dialog-title {
     margin: 12px 16px 0 16px;
     color: @text-color;
@@ -40,7 +38,7 @@
     color: @buttons-bg;
 }
 
-/* Section headers: the list's column header, a quiet label row. */
+/* Section headers: a quiet label row. */
 #qubes-vcpu-window .section {
     color: @buttons-bg;
     border-bottom: 1px solid @separator;
@@ -99,7 +97,7 @@
 #qubes-vcpu-window combobox button:focus,
 #qubes-vcpu-window spinbutton:focus,
 #qubes-vcpu-window spinbutton:focus-within {
-    border-color: @launcher-red;
+    border-color: @accent-red;
 }
 
 #qubes-vcpu-window combobox button label,
@@ -116,7 +114,7 @@
 }
 
 /* The stock stylesheet paints focused images blue (an unscoped `image:focus`
-   rule); clear it inside the inputs, as the list does for its search field. */
+   rule); clear it inside the inputs. */
 #qubes-vcpu-window combobox image,
 #qubes-vcpu-window spinbutton image,
 #qubes-vcpu-window image:focus {
@@ -142,11 +140,11 @@
 }
 
 #qubes-vcpu-window .footer.error {
-    color: @launcher-red;
+    color: @accent-red;
 }
 
-/* Buttons: the action dialog's. Focus is the keyboard's choice and gets the
-   selection colour; hover is fainter. */
+/* Buttons. Focus is the keyboard's choice and gets the selection colour;
+   hover is fainter. */
 #qubes-vcpu-window button.action {
     background-image: none;
     background-color: transparent;
@@ -163,12 +161,12 @@
 }
 
 #qubes-vcpu-window button.action:hover {
-    background-color: alpha(@launcher-red, 0.15);
+    background-color: alpha(@accent-red, 0.15);
 }
 
 #qubes-vcpu-window button.action:focus {
-    background-color: @launcher-red;
-    background-color: alpha(@launcher-red, 0.35);
+    background-color: @accent-red;
+    background-color: alpha(@accent-red, 0.35);
 }
 
 #qubes-vcpu-window button.action.suggested label {
@@ -193,7 +191,7 @@
 }
 
 #qubes-vcpu-window entry:focus {
-    border-color: @launcher-red;
+    border-color: @accent-red;
 }
 
 #qubes-vcpu-window entry:disabled {
@@ -204,7 +202,7 @@
 /* What the window wants you to read. */
 #qubes-vcpu-window .errors,
 #qubes-vcpu-window .warning {
-    color: @launcher-red;
+    color: @accent-red;
 }
 
 #qubes-vcpu-window .errors {
@@ -223,7 +221,7 @@
 
 #qubes-vcpu-window scale highlight {
     background-image: none;
-    background-color: @launcher-red;
+    background-color: @accent-red;
     border: none;
     border-radius: 3px;
 }
@@ -239,7 +237,7 @@
 }
 
 #qubes-vcpu-window scale:focus slider {
-    background-color: @launcher-red;
+    background-color: @accent-red;
 }
 
 #qubes-vcpu-window scale marks indicator {

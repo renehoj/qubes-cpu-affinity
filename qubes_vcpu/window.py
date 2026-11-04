@@ -1,9 +1,9 @@
 """The vCPU window for one qube (GTK 3).
 
-qubes-firewall's window -- the undecorated, translucent chrome of
-qubes-systemlist's action dialog, the stock Qubes menu's stylesheet underneath,
-and the launcher's red for focus -- over three controls: online vCPUs (a
-slider), the core set (soft affinity) and the scheduler weight.
+An undecorated, translucent dialog in the stock Qubes menu's look -- its
+stylesheet underneath, its highlight red for focus -- over three controls:
+online vCPUs (a slider), the core set (soft affinity) and the scheduler
+weight.
 
 Nothing is applied before Apply, and Apply changes the running qube only: the
 next start gets its usual settings again. Save applies too, and also sets the
@@ -13,9 +13,8 @@ start (not the weight).
 Keyboard: Tab moves between the controls, Alt + an underlined letter jumps to
 one, Ctrl+Enter applies, Ctrl+S saves, Escape closes without applying.
 
-``_is_theme_light``, ``_load_theme`` and ``_prepare_transparency`` are the same
-as in qubes-firewall, which mirrors ``qubes_menu.appmenu`` (the Qubes OS
-Project, LGPL-2.1+).
+``_is_theme_light``, ``_load_theme`` and ``_prepare_transparency`` mirror
+``qubes_menu.appmenu`` (the Qubes OS Project, LGPL-2.1+).
 """
 
 from __future__ import annotations
@@ -30,7 +29,7 @@ import gi
 
 # Both namespaces must be pinned, and Gtk must come first: dom0 has GTK4
 # installed, so a bare Gdk import resolves to 4.0 and Gtk 3.0 then refuses to
-# load. Same rule as qubes-firewall.
+# load.
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Pango", "1.0")
@@ -43,7 +42,7 @@ logger = logging.getLogger("qubes-vcpu")
 
 WINDOW_NAME = "qubes-vcpu-window"
 PANE_CLASS = "vcpu-pane"
-#: Window background opacity; qubes-systemlist's default.
+#: Window background opacity.
 WINDOW_ALPHA = 0.92
 ALPHA_PLACEHOLDER = "@ALPHA@"
 WINDOW_WIDTH = 560
@@ -57,7 +56,7 @@ SAVE_HINT = "Ctrl+↵ apply  ·  Ctrl+S save  ·  Esc cancel"
 READ_ONLY_HINT = "Esc close"
 
 
-# -- theme (same as qubes-firewall) --------------------------------------------
+# -- theme (mirrors qubes_menu.appmenu) ----------------------------------------
 def _is_theme_light(widget: Gtk.Widget) -> bool:
     """Is the current system theme light? (mirrors qubes_menu.appmenu)"""
     context = widget.get_style_context()
@@ -127,7 +126,7 @@ def install_style(widget: Gtk.Widget, alpha: float = WINDOW_ALPHA,
     """Load the stylesheets, once per process.
 
     ``theme=False`` skips the stock menu stylesheet (or its fallback): a caller
-    that already loaded it for the screen, like qubes-systemlist, passes that.
+    that already loaded it for the screen passes that.
     """
     global _styled  # pylint: disable=global-statement
     if _styled:
@@ -198,8 +197,8 @@ class VcpuWindow(Gtk.Window):
         self.set_resizable(False)
         self.set_default_size(WINDOW_WIDTH, -1)
         if parent is not None:
-            # Over the list, like its action dialog. Not in the taskbar: it is
-            # part of the list, which has no entry either.
+            # A dialog over the parent window. Not in the taskbar: it is part
+            # of the parent, whose entry stands for both.
             self.set_transient_for(parent)
             self.set_modal(True)
             self.set_skip_taskbar_hint(True)
