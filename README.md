@@ -175,4 +175,3 @@ another file). xl runs through `sudo -n` when the window does not run as root.
 dom0 and qubes that are not running are shown read-only. Ctrl+Enter applies,
 Ctrl+S saves, Escape closes.
 
-Tests: `./run-tests.sh` (the window tests need GTK 3 and a display).
