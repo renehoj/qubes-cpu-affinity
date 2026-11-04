@@ -38,11 +38,11 @@ Confirm with `xl info | grep -i sched` → `xen_scheduler : credit`.
 
 ```bash
 # 1. Copy files over (from a qube: qvm-copy-to-dom0, then move into place)
-install -D -m 0755 qubes-cpu-affinity.py /home/rwh/.local/bin/qubes-cpu-affinity.py
-install -D -m 0644 cpu-affinity.json /home/rwh/.local/bin/cpu-affinity.json
+install -D -m 0755 qubes-cpu-affinity.py /home/user/.local/bin/qubes-cpu-affinity.py
+install -D -m 0644 cpu-affinity.json /home/user/.local/bin/cpu-affinity.json
 sudo install -m 0644 qubes-cpu-affinity.service /etc/systemd/system/
 
-# 2. Edit /home/rwh/.local/bin/cpu-affinity.json to match your CPU topology.
+# 2. Edit /home/user/.local/bin/cpu-affinity.json to match your CPU topology.
 #    Find P vs E core numbering with:  sudo xenpm get-cpu-topology
 
 # 3. Tag VMs to steer them (untagged = all cores, no preference):
@@ -62,7 +62,7 @@ watch -d -n 1 "xl vcpu-list"
 
 ## Config
 
-`/home/rwh/.local/bin/cpu-affinity.json` (next to the script) — `hard_cores` and
+`/home/user/.local/bin/cpu-affinity.json` (next to the script) — `hard_cores` and
 `default_cores` are required (the daemon fails loudly if they're missing):
 
 - `hard_cores` — hard affinity for every VM (the restriction; usually `4-31` = everything except dom0).
