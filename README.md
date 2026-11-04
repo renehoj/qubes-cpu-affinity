@@ -118,12 +118,22 @@ hardcoded range — firmware can reorder cores.
 
 <img width="607" height="320" alt="vcpus2" src="https://github.com/user-attachments/assets/7fe3d78f-0269-401e-9d90-3ed2a43e4043" />
 
-A window for one **running** qube, in qubes-firewall's look:
-
 ```console
-$ qubes-vcpu work            # installed (pip install --user .)
-$ bin/qubes-vcpu work        # straight from the checkout
-$ bin/qubes-vcpu --mock work # demo data, off dom0
+$ qubes-vcpu work
+```
+
+You can call it from the active windows using a simple script
+
+```bash
+#!/bin/bash
+
+CUR_WIN_ID=`xdotool getwindowfocus`
+CUR_VM=`xprop _QUBES_VMNAME -id $CUR_WIN_ID |cut -d \" -f2`
+
+#qubes-vm-settings $CUR_VM
+/home/user/.local/share/qubes-cpu-affinity/bin/qubes-vcpu $CUR_VM
+
+exit 0
 ```
 
 It changes, for every vCPU of the qube at once:
