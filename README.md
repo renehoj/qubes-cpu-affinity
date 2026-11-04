@@ -19,18 +19,19 @@ started at any time (not just at boot) get pinned.
 4. Optionally, the number of **online vCPUs** is set from a qvm-feature (see
    below) via `xl vcpu-set <vm> N`.
 
-**Soft affinity only works with the credit1 scheduler, if you use credit2 
+**Soft affinity only works with the credit1 scheduler, if you use credit2
 Xen will not respect the limits**
 
 ## Install (in dom0)
 
 ```bash
 # 1. Copy files over (from a qube: qvm-copy-to-dom0, then move into place)
-install -D -m 0755 qubes-cpu-affinity.py /home/user/.local/bin/qubes-cpu-affinity.py
-install -D -m 0644 cpu-affinity.json /home/user/.local/bin/cpu-affinity.json
+#    The daemon runs as root, so it and its config belong to root.
+sudo install -D -m 0755 qubes-cpu-affinity.py /usr/local/lib/qubes-cpu-affinity/qubes-cpu-affinity.py
+sudo install -m 0644 cpu-affinity.json /etc/qubes-cpu-affinity.json
 sudo install -m 0644 qubes-cpu-affinity.service /etc/systemd/system/
 
-# 2. Edit /home/user/.local/bin/cpu-affinity.json to match your CPU topology.
+# 2. Edit /etc/qubes-cpu-affinity.json (sudoedit) to match your CPU topology.
 #    Find P vs E core numbering with:  sudo xenpm get-cpu-topology
 
 # 3. Tag VMs to steer them (untagged = all cores, no preference):
@@ -50,8 +51,9 @@ watch -d -n 1 "xl vcpu-list"
 
 ## Config
 
-`/home/user/.local/bin/cpu-affinity.json` (next to the script) — `hard_cores` and
-`default_cores` are required (the daemon fails loudly if they're missing):
+`/etc/qubes-cpu-affinity.json`, owned by root like the daemon that reads it
+(edit it with `sudoedit`) — `hard_cores` and `default_cores` are required (the
+daemon fails loudly if they're missing):
 
 - `hard_cores` — hard affinity for every VM (the restriction; usually `4-31` = everything except dom0).
 - `tags` — map of `{tag: soft cores}`. A VM's soft affinity is the first tag it
@@ -143,8 +145,7 @@ AppVM `/etc` is reset at the next start; the next increase writes it again.
 If that fails (no qrexec, a Windows qube), nothing is applied. Lowering the
 count needs no rule.
 
-The core sets are read from `~/.local/bin/cpu-affinity.json` (`--config` for
+The core sets are read from `/etc/qubes-cpu-affinity.json` (`--config` for
 another file). xl runs through `sudo -n` when the window does not run as root.
 dom0 and qubes that are not running are shown read-only. Ctrl+Enter applies,
 Ctrl+S saves, Escape closes.
-
