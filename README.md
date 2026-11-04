@@ -81,27 +81,6 @@ with dom0 pinned to the first 2 P-cores (CPUs 0-3) via the boot param:
 Confirm your own split with `sudo xenpm get-cpu-topology` before trusting any
 hardcoded range — firmware can reorder cores.
 
-## Notes
-
-- The daemon emits `xl vcpu-pin <name> all <hard> <soft>`, applying both masks
-  to every vCPU of the domain. Hard affinity restricts, soft affinity steers.
-- dom0 is **not** a qube and is not handled here. Pin it via the Xen boot
-  params `dom0_max_vcpus=N dom0_vcpus_pin` in `/etc/default/grub` (pins vcpus
-  1:1 to CPUs 0..N-1 from boot, no runtime code). Reserve those CPUs out of
-  `hard_cores` so VMs can't land on dom0's cores.
-- HVM VMs get a device-model stubdomain named `<vm>-dm` (e.g. `sys-net-dm`).
-  It's not a qube (no event fires for it), so the daemon pins it alongside its
-  parent — same hard + soft affinity — whenever the HVM VM starts or is swept.
-- `xl vcpu-set` can only bring vCPUs online up to the VM's maxvcpus, which is
-  `qvm-prefs <vm> vcpus` at start time. If the feature asks for more (or isn't
-  a positive integer) the daemon logs a warning and leaves the count alone.
-  It applies to the VM only, not its `-dm` stubdomain. Changing the feature on
-  a running VM takes effect at the next start (or daemon restart).
-- If a VM has more vCPUs than the cores you give it, it will oversubscribe
-  those cores. Keep `vcpus` <= the size of the relevant set.
-- If you see "domain not found" warnings and the retry doesn't cover it, try
-  `--event domain-spawn` (fires when the Xen domain is actually created).
-
 ## The vCPU window (`qubes-vcpu`)
 
 <img width="607" height="320" alt="vcpus2" src="https://github.com/user-attachments/assets/7fe3d78f-0269-401e-9d90-3ed2a43e4043" />
