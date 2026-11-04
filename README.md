@@ -118,10 +118,6 @@ hardcoded range — firmware can reorder cores.
 
 <img width="607" height="320" alt="vcpus2" src="https://github.com/user-attachments/assets/7fe3d78f-0269-401e-9d90-3ed2a43e4043" />
 
-```console
-$ qubes-vcpu work
-```
-
 You can call it from the active windows using a simple script
 
 ```bash
